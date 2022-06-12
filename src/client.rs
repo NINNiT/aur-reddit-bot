@@ -2,7 +2,7 @@ use dotenv;
 use log::info;
 use roux::{util::RouxError, Me, Reddit};
 
-use crate::aur::AurApiResRoot;
+use crate::{aur::AurApiResRoot, db::db_insert_comment};
 
 pub async fn get_client() -> Result<Me, RouxError> {
     let user_agent = "rust:aur-reddit-bot:v1 (/u/masterninni)";
@@ -21,6 +21,11 @@ pub async fn get_client() -> Result<Me, RouxError> {
 pub async fn reply_to_comment(client: &Me, parent_id: &str, response: AurApiResRoot) {
     let message = generate_comment_string(response).await;
     let res = client.comment(message.as_str(), parent_id).await;
+
+    if res.as_ref().unwrap().status().is_success() {
+        db_insert_comment(&parent_id)
+    }
+
     info!(
         "Replied to comment {} with status {}",
         parent_id,

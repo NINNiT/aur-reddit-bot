@@ -1,6 +1,6 @@
 use futures_util::StreamExt;
 use linkify::{LinkFinder, LinkKind};
-use log::{debug, info, warn};
+use log::{info, warn};
 use roux::{subreddit::responses::SubredditCommentsData, Me, Subreddit};
 use roux_stream::stream_comments;
 use std::time::Duration;
@@ -10,6 +10,7 @@ use url::Url;
 use crate::{
     aur::fetch_pkgdata_from_aur,
     client::{get_client, reply_to_comment},
+    db::db_check_comment_exists,
 };
 
 pub async fn stream_latest_comments(subreddit: &Subreddit) {
@@ -100,8 +101,13 @@ async fn get_pkg_name_from_aur_url(url: &Url) -> String {
 
 async fn check_is_valid_comment(comment: &SubredditCommentsData) -> bool {
     let author = comment.author.as_ref().unwrap();
+    let comment_id = comment.name.as_ref().unwrap();
 
     if author.eq(dotenv::var("BOT_USERNAME").unwrap().as_str()) {
+        return false;
+    }
+
+    if db_check_comment_exists(&comment_id) {
         return false;
     }
 
@@ -109,5 +115,6 @@ async fn check_is_valid_comment(comment: &SubredditCommentsData) -> bool {
         "Comment {} is valid",
         comment.name.as_ref().unwrap().to_string()
     );
+
     true
 }
