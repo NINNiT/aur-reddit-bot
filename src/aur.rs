@@ -37,7 +37,7 @@ pub struct AurApiResResult {
     #[serde(rename = "NumVotes")]
     pub num_votes: i64,
     #[serde(rename = "OutOfDate")]
-    pub out_of_date: Option<String>,
+    pub out_of_date: Option<i64>,
     #[serde(rename = "PackageBase")]
     pub package_base: String,
     #[serde(rename = "PackageBaseID")]
