@@ -1,4 +1,5 @@
 use dotenv;
+use log::info;
 use roux::{util::RouxError, Me, Reddit};
 
 use crate::aur::AurApiResRoot;
@@ -19,8 +20,12 @@ pub async fn get_client() -> Result<Me, RouxError> {
 
 pub async fn reply_to_comment(client: &Me, parent_id: &str, response: AurApiResRoot) {
     let message = generate_comment_string(response).await;
-    let res = client.comment(message.as_str(), parent_id);
-    println!("{:?}", res.await.unwrap().status());
+    let res = client.comment(message.as_str(), parent_id).await;
+    info!(
+        "Replied to comment {} with status {}",
+        parent_id,
+        res.as_ref().unwrap().status()
+    );
 }
 
 pub async fn generate_comment_string(response: AurApiResRoot) -> String {
@@ -30,6 +35,12 @@ pub async fn generate_comment_string(response: AurApiResRoot) -> String {
         "[{}](https://aur.archlinux.org/packages/{})",
         pkgdata.name, pkgdata.name
     );
+
+    let out_of_date = if pkgdata.out_of_date.is_some() {
+        "_out-of-date_".to_string()
+    } else {
+        "".to_string()
+    };
 
     let description = format!("{}", pkgdata.description);
 
@@ -41,10 +52,11 @@ pub async fn generate_comment_string(response: AurApiResRoot) -> String {
         format!("Votes|{}", pkgdata.num_votes),
         format!("Popularity|{}", pkgdata.popularity),
         format!("License|{}", pkgdata.license.join(" ").to_string()),
+        format!("Last Modified|{}", pkgdata.last_modified).to_string(),
     ]
     .join("\n");
 
-    let final_string = [aur_link, description, pkgdata_table].join("\n\n");
+    let final_string = [aur_link, out_of_date, description, pkgdata_table].join("\n\n");
 
     return final_string;
 }

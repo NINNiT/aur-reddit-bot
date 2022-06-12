@@ -1,3 +1,4 @@
+use log::info;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -60,6 +61,8 @@ pub async fn fetch_pkgdata_from_aur(pkg_name: String) -> Result<AurApiResRoot, r
     )
     .to_string();
 
-    let response = reqwest::get(url).await?.json::<AurApiResRoot>().await?;
+    let response = reqwest::get(&url).await?.json::<AurApiResRoot>().await?;
+    info!("Fetched data from {}", &url);
+
     Ok(response)
 }

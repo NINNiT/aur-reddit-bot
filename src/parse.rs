@@ -1,5 +1,6 @@
 use futures_util::StreamExt;
 use linkify::{LinkFinder, LinkKind};
+use log::{debug, info, warn};
 use roux::{subreddit::responses::SubredditCommentsData, Me, Subreddit};
 use roux_stream::stream_comments;
 use std::time::Duration;
@@ -11,10 +12,11 @@ use crate::{
     client::{get_client, reply_to_comment},
 };
 
-pub async fn stream_latest_comments() {
+pub async fn stream_latest_comments(subreddit: &Subreddit) {
+    info!("Streaming comments for {:?}", subreddit.name);
+
     let client = get_client().await.unwrap();
     let retry_strategy = ExponentialBackoff::from_millis(5).factor(100).take(3);
-    let subreddit = Subreddit::new("krangler_bot_test");
 
     let (mut stream, join_handle) = stream_comments(
         &subreddit,
@@ -32,7 +34,7 @@ pub async fn stream_latest_comments() {
 }
 
 async fn handle_single_comment(client: &Me, comment: &SubredditCommentsData) {
-    if (check_is_valid_comment(comment).await) {
+    if check_is_valid_comment(comment).await {
         let aur_urls = get_aur_urls_from_comment(&comment).await;
 
         if aur_urls.is_some() {
@@ -64,9 +66,17 @@ async fn get_aur_urls_from_comment(comment: &SubredditCommentsData) -> Option<Ve
             .collect();
 
         if !found_aur_urls.is_empty() {
+            info!(
+                "Found AUR-Urls in comment {}",
+                comment.name.as_ref().unwrap().to_string()
+            );
             return Some(found_aur_urls);
         }
     }
+    warn!(
+        "Did not find AUR-Urls in comment {}",
+        comment.name.as_ref().unwrap().to_string()
+    );
     None
 }
 
@@ -83,7 +93,9 @@ async fn get_pkg_names_from_aur_urls(aur_urls: &Vec<Url>) -> Option<Vec<String>>
 }
 
 async fn get_pkg_name_from_aur_url(url: &Url) -> String {
-    url.to_string().split('/').last().unwrap().to_string()
+    let package_name = url.to_string().split('/').last().unwrap().to_string();
+    info!("Extracted package name is {}", package_name);
+    package_name
 }
 
 async fn check_is_valid_comment(comment: &SubredditCommentsData) -> bool {
@@ -93,5 +105,9 @@ async fn check_is_valid_comment(comment: &SubredditCommentsData) -> bool {
         return false;
     }
 
+    info!(
+        "Comment {} is valid",
+        comment.name.as_ref().unwrap().to_string()
+    );
     true
 }
