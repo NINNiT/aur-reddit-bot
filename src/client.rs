@@ -48,6 +48,24 @@ pub async fn reply_to_comment(
 pub async fn generate_comment_string(response: AurApiResRoot) -> String {
     let pkgdata = response.results.first().unwrap();
 
+    let dependencies = if pkgdata.depends.is_some() {
+        pkgdata.depends.as_ref().unwrap().len()
+    } else {
+        0
+    };
+
+    let make_dependencies = if pkgdata.make_depends.is_some() {
+        pkgdata.make_depends.as_ref().unwrap().len()
+    } else {
+        0
+    };
+
+    let conflicts = if pkgdata.conflicts.is_some() {
+        pkgdata.conflicts.as_ref().unwrap().join(" ").to_string()
+    } else {
+        "none".to_string()
+    };
+
     let aur_link = format!(
         "[{}](https://aur.archlinux.org/packages/{})",
         pkgdata.name, pkgdata.name
@@ -68,7 +86,11 @@ pub async fn generate_comment_string(response: AurApiResRoot) -> String {
         format!("Maintainer|{}", pkgdata.maintainer),
         format!("Votes|{}", pkgdata.num_votes),
         format!("Popularity|{}", pkgdata.popularity),
+        format!("Dependencies|{}", dependencies),
+        format!("Make-Dependencies|{}", make_dependencies),
         format!("License|{}", pkgdata.license.join(" ").to_string()),
+        format!("Conflicts|{}", conflicts),
+        format!("Provides|{}", pkgdata.provides.join(" ").to_string()),
         format!(
             "Last Modified|{}",
             unix_time_to_datetime(pkgdata.last_modified).await

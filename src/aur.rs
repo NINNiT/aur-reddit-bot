@@ -30,6 +30,8 @@ pub struct AurApiResResult {
     pub license: Vec<String>,
     #[serde(rename = "Maintainer")]
     pub maintainer: String,
+    #[serde(rename = "Depends")]
+    pub depends: Option<Vec<String>>,
     #[serde(rename = "MakeDepends")]
     pub make_depends: Option<Vec<String>>,
     #[serde(rename = "Name")]
