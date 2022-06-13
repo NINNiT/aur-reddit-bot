@@ -3,6 +3,7 @@ use linkify::{LinkFinder, LinkKind};
 use log::{info, warn};
 use roux::{subreddit::responses::SubredditCommentsData, Me, Subreddit};
 use roux_stream::stream_comments;
+use sqlx::{Pool, Sqlite};
 use std::time::Duration;
 use tokio_retry::strategy::ExponentialBackoff;
 use url::Url;
@@ -10,12 +11,13 @@ use url::Url;
 use crate::{
     aur::fetch_pkgdata_from_aur,
     client::{get_client, reply_to_comment},
-    db::db_check_comment_exists,
+    db::{db_check_comment_exists, db_establish_connection},
 };
 
 pub async fn stream_latest_comments(subreddit: &Subreddit) {
     info!("Streaming comments for {:?}", subreddit.name);
 
+    let db_con = db_establish_connection().await;
     let client = get_client().await.unwrap();
     let retry_strategy = ExponentialBackoff::from_millis(5).factor(100).take(3);
 
@@ -28,14 +30,18 @@ pub async fn stream_latest_comments(subreddit: &Subreddit) {
 
     while let Some(comment) = stream.next().await {
         let comment = comment.unwrap();
-        handle_single_comment(&client, &comment).await
+        handle_single_comment(&client, &comment, &db_con).await
     }
 
     join_handle.await.unwrap().unwrap();
 }
 
-async fn handle_single_comment(client: &Me, comment: &SubredditCommentsData) {
-    if check_is_valid_comment(comment).await {
+async fn handle_single_comment(
+    client: &Me,
+    comment: &SubredditCommentsData,
+    db_con: &Pool<Sqlite>,
+) {
+    if check_is_valid_comment(comment, db_con).await {
         let aur_urls = get_aur_urls_from_comment(&comment).await;
 
         if aur_urls.is_some() {
@@ -48,7 +54,7 @@ async fn handle_single_comment(client: &Me, comment: &SubredditCommentsData) {
                     if response.is_ok() {
                         let comment_id = &comment.name.as_ref().unwrap().as_str();
 
-                        reply_to_comment(client, comment_id, response.unwrap()).await;
+                        reply_to_comment(client, comment_id, response.unwrap(), &db_con).await;
                     }
                 }
             }
@@ -99,7 +105,7 @@ async fn get_pkg_name_from_aur_url(url: &Url) -> String {
     package_name
 }
 
-async fn check_is_valid_comment(comment: &SubredditCommentsData) -> bool {
+async fn check_is_valid_comment(comment: &SubredditCommentsData, db_con: &Pool<Sqlite>) -> bool {
     let author = comment.author.as_ref().unwrap();
     let comment_id = comment.name.as_ref().unwrap();
 
@@ -107,7 +113,7 @@ async fn check_is_valid_comment(comment: &SubredditCommentsData) -> bool {
         return false;
     }
 
-    if db_check_comment_exists(&comment_id) {
+    if db_check_comment_exists(db_con, &comment_id).await {
         return false;
     }
 

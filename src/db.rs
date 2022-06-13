@@ -1,40 +1,57 @@
-use sqlite::{self, Connection};
+use log::info;
+use sqlx::{sqlite::SqlitePoolOptions, Pool, Sqlite, SqlitePool};
 
-pub fn db_establish_connection() -> Connection {
+pub async fn db_establish_connection() -> Pool<Sqlite> {
     let database_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    Connection::open(&database_url).expect(&format!("Error connecting to {}", database_url))
+
+    info!("Connecting to sqlite database at {}", database_url);
+
+    SqlitePoolOptions::new()
+        .connect(&database_url)
+        .await
+        .unwrap()
 }
 
-pub fn db_upsert_table() {
-    let con = db_establish_connection();
-    con.execute("CREATE TABLE IF NOT EXISTS comments ( id STRING PRIMARY KEY );")
+pub async fn db_upsert_table(con: &Pool<Sqlite>) {
+    info!("Creating comments table");
+
+    sqlx::query("CREATE TABLE IF NOT EXISTS comments ( id STRING PRIMARY KEY );")
+        .execute(con)
+        .await
         .unwrap();
 }
 
-pub fn db_insert_comment(comment_id: &str) {
-    let con = db_establish_connection();
+pub async fn db_insert_comment(con: &Pool<Sqlite>, comment_id: &str) {
+    info!("Inserting id for comment {}", comment_id);
 
-    con.execute(format!("insert into comments values {};", comment_id))
+    let query = "INSERT INTO comments values (?)";
+
+    sqlx::query(query)
+        .bind(comment_id)
+        .execute(con)
+        .await
         .unwrap();
 }
 
-pub fn db_check_comment_exists(comment_id: &str) -> bool {
-    let con = db_establish_connection();
-    let res = con.iterate(
-        format!("select count(*) from comments where id = {}", comment_id),
-        |pairs| {
-            for &(column, value) in pairs.iter() {
-                if value.unwrap().as_ > 0 {
-                    return true;
-                }
-            }
-            if result.firsunwrap() > 0 {
-                return true;
-            } else {
-                return false;
-            }
-        },
+pub async fn db_check_comment_exists(con: &Pool<Sqlite>, comment_id: &str) -> bool {
+    info!(
+        "Checking if comment already handled for comment {}",
+        comment_id
     );
 
-    false
+    let query = "SELECT COUNT(*) FROM comments where id = ?";
+
+    let count: (i32,) = sqlx::query_as(query)
+        .bind(comment_id)
+        .fetch_one(con)
+        .await
+        .unwrap();
+
+    if count.0 > 0 {
+        info!("Already handled comment {}", comment_id);
+        return true;
+    } else {
+        info!("New comment {}", comment_id);
+        return false;
+    }
 }

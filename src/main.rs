@@ -2,7 +2,12 @@ use futures_util::future::join_all;
 use log::info;
 use roux::Subreddit;
 
-use crate::{db::db_upsert_table, parse::stream_latest_comments};
+use crate::{
+    db::{db_establish_connection, db_upsert_table},
+    parse::stream_latest_comments,
+};
+
+// use crate::{db2::db_upsert_table, parse::stream_latest_comments};
 
 mod aur;
 mod client;
@@ -16,7 +21,7 @@ async fn main() {
     info!("Started aur-reddit-bot");
 
     // create db table if not already existing
-    db_upsert_table();
+    db_upsert_table(&db_establish_connection().await).await;
 
     // list of subreddits that comments should be streamed from
     let subreddits: Vec<Subreddit> = vec![Subreddit::new("krangler_bot_test")];
