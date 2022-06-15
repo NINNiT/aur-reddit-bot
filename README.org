@@ -1,6 +1,4 @@
 #+title: aur-reddit-bot
 
-[![Docker](https://github.com/NINNiT/aur-reddit-bot/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/NINNiT/aur-reddit-bot/actions/workflows/docker-publish.yml)]
-
 A reddit bot which replies to comments linking AUR-packages and displays various statistics of said packages.
 Developed using Rust, primarily as an exercise. Uses =roux= and =roux_stream= as a Reddit API Wrapper and =sqlx= as a database client.
