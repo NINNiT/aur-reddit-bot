@@ -4,12 +4,9 @@ use chrono::{DateTime, Utc};
 use dotenv;
 use log::info;
 use roux::{util::RouxError, Me, Reddit};
-use sqlx::{Pool, Sqlite};
+use sqlx::SqliteConnection;
 
-use crate::{
-    aur::AurApiResRoot,
-    db::{self, db_insert_comment},
-};
+use crate::{aur::AurApiResRoot, db::db_insert_comment};
 
 pub async fn get_client() -> Result<Me, RouxError> {
     let user_agent = "rust:aur-reddit-bot:v1 (/u/masterninni)";
@@ -29,7 +26,7 @@ pub async fn reply_to_comment(
     client: &Me,
     parent_id: &str,
     response: AurApiResRoot,
-    db_con: &Pool<Sqlite>,
+    db_con: &mut SqliteConnection,
 ) {
     let message = generate_comment_string(response).await;
     let res = client.comment(message.as_str(), parent_id).await;
@@ -67,7 +64,7 @@ pub async fn generate_comment_string(response: AurApiResRoot) -> String {
     };
 
     let aur_link = format!(
-        "[{}](https://aur.archlinux.org/packages/{})",
+        "The AUR-package __[{}](https://aur.archlinux.org/packages/{})__ has been detected.",
         pkgdata.name, pkgdata.name
     );
 
@@ -77,7 +74,7 @@ pub async fn generate_comment_string(response: AurApiResRoot) -> String {
         "".to_string()
     };
 
-    let description = format!("{}", pkgdata.description);
+    let description = format!("__Description:__ {}", pkgdata.description);
 
     let pkgdata_table = [
         format!("Field|Value"),
@@ -99,12 +96,20 @@ pub async fn generate_comment_string(response: AurApiResRoot) -> String {
     ]
     .join("\n");
 
-    let footer_line = format!("---");
+    let line = format!("---");
+
     let footer_content = format!("^(This bot has been written by masterninni using Rust, primarily as an exercise, and is licensed under GPL-3. Contributions are welcome and the git repo can be found at [GitHub](https://github.com/NINNiT/aur-reddit-bot). Please DM me if there are any problems!)");
 
-    let footer = [footer_line, footer_content].join("\n");
-
-    let final_string = [aur_link, out_of_date, description, pkgdata_table, footer].join("\n\n");
+    let final_string = [
+        aur_link,
+        out_of_date,
+        description,
+        line.clone(),
+        pkgdata_table,
+        line.clone(),
+        footer_content,
+    ]
+    .join("\n\n");
 
     return final_string;
 }

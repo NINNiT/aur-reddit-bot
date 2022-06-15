@@ -1,0 +1,4 @@
+#+title: aur-reddit-bot
+
+A reddit bot which replies to comments linking AUR-packages and displays various statistics of said packages.
+Developed using Rust, primarily as an exercise. Uses =roux= and =roux_stream= as a Reddit API Wrapper and =sqlx= as a database client.

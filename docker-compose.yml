@@ -1,0 +1,8 @@
+version: "3.8"
+
+services:
+  aur-reddit-bot:
+    image: aur-reddit-bot
+    env_file:
+      - .env
+    restart: on-failure

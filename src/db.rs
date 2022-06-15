@@ -1,18 +1,21 @@
 use log::info;
-use sqlx::{sqlite::SqlitePoolOptions, Pool, Sqlite, SqlitePool};
+use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions, SqliteConnection};
+use std::str::FromStr;
 
-pub async fn db_establish_connection() -> Pool<Sqlite> {
+pub async fn db_establish_connection() -> SqliteConnection {
     let database_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     info!("Connecting to sqlite database at {}", database_url);
 
-    SqlitePoolOptions::new()
-        .connect(&database_url)
+    SqliteConnectOptions::from_str(&database_url)
+        .unwrap()
+        .create_if_missing(true)
+        .connect()
         .await
         .unwrap()
 }
 
-pub async fn db_upsert_table(con: &Pool<Sqlite>) {
+pub async fn db_upsert_table(con: &mut SqliteConnection) {
     info!("Creating comments table");
 
     sqlx::query("CREATE TABLE IF NOT EXISTS comments ( id STRING PRIMARY KEY );")
@@ -21,7 +24,7 @@ pub async fn db_upsert_table(con: &Pool<Sqlite>) {
         .unwrap();
 }
 
-pub async fn db_insert_comment(con: &Pool<Sqlite>, comment_id: &str) {
+pub async fn db_insert_comment(con: &mut SqliteConnection, comment_id: &str) {
     info!("Inserting id for comment {}", comment_id);
 
     let query = "INSERT INTO comments values (?)";
@@ -33,7 +36,7 @@ pub async fn db_insert_comment(con: &Pool<Sqlite>, comment_id: &str) {
         .unwrap();
 }
 
-pub async fn db_check_comment_exists(con: &Pool<Sqlite>, comment_id: &str) -> bool {
+pub async fn db_check_comment_exists(con: &mut SqliteConnection, comment_id: &str) -> bool {
     info!(
         "Checking if comment already handled for comment {}",
         comment_id
